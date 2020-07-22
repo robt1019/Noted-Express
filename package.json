@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:dev": "npx nodemon index.js",
-    "start": "npx node index.js"
+    "start": "npx node index.js",
+    "deploy": "git push heroku master",
+    "deploy-force": "git push heroku master -f"
   },
   "engines": {
     "node": "v12.16.2"
