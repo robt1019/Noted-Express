@@ -88,8 +88,8 @@ io.sockets
           });
         }
       });
-      socket.on("disconnect", () => {
-        debug("user disconnected");
+      socket.on("disconnect", (reason) => {
+        debug("user disconnected", reason);
       });
     });
   });
