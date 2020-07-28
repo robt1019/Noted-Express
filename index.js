@@ -54,7 +54,7 @@ io.sockets
 
     setTimeout(() => {
       socket.disconnect(true);
-    }, 30000);
+    }, 900000);
 
     Notes.findOne({ username: userId }).then((notes) => {
       if (notes) {
