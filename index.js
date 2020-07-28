@@ -52,6 +52,10 @@ io.sockets
 
     socket.join(userId);
 
+    setTimeout(() => {
+      socket.disconnect(true);
+    }, 30000);
+
     Notes.findOne({ username: userId }).then((notes) => {
       if (notes) {
         io.to(userId).emit("notesUpdated", notes);
