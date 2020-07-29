@@ -52,9 +52,10 @@ io.sockets
 
     socket.join(userId);
 
+    // disconnect from socket to force user to reauthenticate
     setTimeout(() => {
       socket.disconnect(true);
-    }, 10000);
+    }, 900000);
 
     Notes.findOne({ username: userId }).then((notes) => {
       if (notes) {
