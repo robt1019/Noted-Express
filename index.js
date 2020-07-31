@@ -59,7 +59,7 @@ io.sockets
 
     Notes.findOne({ username: userId }).then((notes) => {
       if (notes) {
-        io.to(userId).emit("notesUpdated", notes);
+        io.to(userId).emit("initialNotes", notes);
       }
     });
 
