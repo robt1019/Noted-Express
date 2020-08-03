@@ -7,6 +7,8 @@ const helmet = require("helmet");
 const jwks = require("jwks-rsa");
 const socketioJwt = require("socketio-jwt");
 const Notes = require("./models/notes.model");
+const { diff_match_patch } = require("diff-match-patch");
+const dmp = new diff_match_patch();
 
 const port = process.env.PORT || 3000;
 
@@ -67,18 +69,26 @@ io.sockets
       debug(`updating ${userId} notes`);
       Notes.find({ username: userId }).then((notes) => {
         if (notes && notes.length) {
+          const diff = dmp.diff_main(payload.prev, payload.content);
+          dmp.diff_cleanupSemantic(diff);
+
+          const newNotes = dmp.patch_apply(
+            dmp.patch_make(notes[0].content, diff),
+            notes[0].content
+          )[0];
+
           Notes.updateOne(
             {
               username: userId,
             },
             {
               username: userId,
-              content: payload.content,
+              content: newNotes,
             }
           ).then(() =>
             io.to(userId).emit("notesUpdated", {
               username: userId,
-              content: payload.content,
+              content: newNotes,
             })
           );
         } else {
