@@ -67,13 +67,13 @@ io.sockets
 
     socket.on("updateNotes", (payload) => {
       debug(`updating ${userId} notes`);
+      if (!(payload && payload.diff)) {
+        return;
+      }
       Notes.find({ username: userId }).then((notes) => {
         if (notes && notes.length) {
-          const diff = dmp.diff_main(payload.prev, payload.content);
-          dmp.diff_cleanupSemantic(diff);
-
           const newNotes = dmp.patch_apply(
-            dmp.patch_make(notes[0].content, diff),
+            dmp.patch_make(notes[0].content, payload.diff),
             notes[0].content
           )[0];
 
@@ -88,17 +88,21 @@ io.sockets
           ).then(() =>
             io.to(userId).emit("notesUpdated", {
               username: userId,
-              content: newNotes,
+              diff: newNotes,
             })
           );
         } else {
+          const newNotes = dmp.patch_apply(
+            dmp.patch_make("", payload.diff),
+            ""
+          )[0];
           Notes.create({
             username: userId,
-            content: payload.content,
+            content: newNotes,
           }).then(() => {
             io.to(userId).emit("notesUpdated", {
               username: userId,
-              content: payload.content,
+              diff: payload.diff,
             });
           });
         }
