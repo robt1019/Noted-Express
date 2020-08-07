@@ -36,6 +36,13 @@ const server = app.listen(port, () =>
 
 const io = require("socket.io")(server);
 
+const patch = (string, diff) => {
+  dmp.diff_cleanupSemantic(diff);
+  const patches = dmp.patch_make(string, diff);
+  const patched = dmp.patch_apply(patches, string);
+  return patched[0];
+};
+
 io.sockets
   .on(
     "connection",
@@ -60,22 +67,36 @@ io.sockets
     }, 900000);
 
     Notes.findOne({ username: userId }).then((notes) => {
-      if (notes) {
-        io.to(userId).emit("initialNotes", notes);
-      }
+      io.to(userId).emit(
+        "initialNotes",
+        JSON.stringify(notes ? notes.notes : notes)
+      );
     });
 
-    socket.on("updateNotes", (payload) => {
-      debug(`updating ${userId} notes`);
-      if (!(payload && payload.diff)) {
+    socket.on("updateNote", (payload) => {
+      debug(`updating ${userId} note ${payload.id}`);
+      if (!(payload && payload.id && payload.title && payload.body)) {
+        debug("malformed updateNote request", JSON.stringify(payload));
         return;
       }
-      Notes.find({ username: userId }).then((notes) => {
-        if (notes && notes.length) {
-          const newNotes = dmp.patch_apply(
-            dmp.patch_make(notes[0].content, payload.diff),
-            notes[0].content
-          )[0];
+      Notes.findOne({ username: userId }).then((notes) => {
+        if (notes) {
+          let newTitle, newBody;
+
+          if (notes.notes.get(payload.id)) {
+            const oldTitle = notes.notes.get(payload.id).title;
+            const oldBody = notes.notes.get(payload.id).body;
+            newTitle = patch(oldTitle, payload.title);
+            newBody = patch(oldBody, payload.body);
+          } else {
+            newTitle = patch("", payload.title);
+            newBody = patch("", payload.body);
+          }
+
+          debug(`updating note with title: ${newTitle} and body ${newBody}`);
+
+          const notesMap = notes.notes;
+          notesMap.set(payload.id, { title: newTitle, body: newBody });
 
           Notes.updateOne(
             {
@@ -83,32 +104,60 @@ io.sockets
             },
             {
               username: userId,
-              content: newNotes,
+              notes: notesMap,
             }
           ).then(() =>
-            io.to(userId).emit("notesUpdated", {
-              username: userId,
-              diff: newNotes,
+            io.to(userId).emit("noteUpdated", {
+              id: payload.id,
+              title: payload.title,
+              body: payload.body,
             })
           );
         } else {
-          const newNotes = dmp.patch_apply(
-            dmp.patch_make("", payload.diff),
-            ""
-          )[0];
+          const newTitle = patch("", payload.title);
+          const newBody = patch("", payload.body);
           Notes.create({
             username: userId,
-            content: newNotes,
+            notes: new Map().set(payload.id, {
+              title: newTitle,
+              body: newBody,
+            }),
           }).then(() => {
-            io.to(userId).emit("notesUpdated", {
-              username: userId,
-              diff: payload.diff,
+            io.to(userId).emit("noteUpdated", {
+              id: payload.id,
+              title: payload.title,
+              body: payload.body,
             });
           });
         }
       });
-      socket.on("disconnect", (reason) => {
-        debug("user disconnected", reason);
+    });
+
+    socket.on("deleteNote", (noteId) => {
+      debug("deleteNote action received");
+      Notes.findOne({ username: userId }).then((notes) => {
+        debug("found user's notes, prepping for destruction");
+        const notesMap = notes.notes;
+        if (notesMap.get(noteId)) {
+          notesMap.delete(noteId);
+        }
+        debug(`notes after deletion ${JSON.stringify(notesMap)}`);
+        Notes.updateOne(
+          {
+            username: userId,
+          },
+          {
+            username: userId,
+            notes: notesMap,
+          }
+        ).then(() => {
+          io.to(userId).emit("noteDeleted", noteId);
+          debug("note deleted");
+        });
       });
+    });
+
+    socket.on("disconnect", (reason) => {
+      debug("user disconnected", reason);
     });
   });
