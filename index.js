@@ -73,6 +73,53 @@ io.sockets
       );
     });
 
+    socket.on("createNote", (payload) => {
+      debug(`creating new note for user: ${userId}`);
+      Notes.findOne({ username: userId }).then((notes) => {
+        if (notes) {
+          debug(
+            `creating note with title: ${payload.title} and body ${payload.body}`
+          );
+
+          const notesMap = notes.notes;
+          notesMap.set(payload.id, {
+            title: payload.title,
+            body: payload.body,
+          });
+
+          Notes.updateOne(
+            {
+              username: userId,
+            },
+            {
+              username: userId,
+              notes: notesMap,
+            }
+          ).then(() =>
+            io.to(userId).emit("noteCreated", {
+              id: payload.id,
+              title: payload.title,
+              body: payload.body,
+            })
+          );
+        } else {
+          Notes.create({
+            username: userId,
+            notes: new Map().set(payload.id, {
+              title: payload.title,
+              body: payload.body,
+            }),
+          }).then(() => {
+            io.to(userId).emit("noteCreated", {
+              id: payload.id,
+              title: payload.title,
+              body: payload.body,
+            });
+          });
+        }
+      });
+    });
+
     socket.on("updateNote", (payload) => {
       debug(`updating ${userId} note ${payload.id}`);
       if (!(payload && payload.id && payload.title && payload.body)) {
