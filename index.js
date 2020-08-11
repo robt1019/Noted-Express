@@ -7,8 +7,7 @@ const helmet = require("helmet");
 const jwks = require("jwks-rsa");
 const socketioJwt = require("socketio-jwt");
 const Notes = require("./models/notes.model");
-const { diff_match_patch } = require("diff-match-patch");
-const dmp = new diff_match_patch();
+const { updateNote, createNote, deleteNote } = require("./notes-service");
 
 const port = process.env.PORT || 3000;
 
@@ -36,13 +35,6 @@ const server = app.listen(port, () =>
 
 const io = require("socket.io")(server);
 
-const patch = (string, diff) => {
-  dmp.diff_cleanupSemantic(diff);
-  const patches = dmp.patch_make(string, diff);
-  const patched = dmp.patch_apply(patches, string);
-  return patched[0];
-};
-
 io.sockets
   .on(
     "connection",
@@ -67,135 +59,49 @@ io.sockets
     }, 900000);
 
     Notes.findOne({ username: userId }).then((notes) => {
+      debug("sending initial notes");
       io.to(userId).emit(
         "initialNotes",
         JSON.stringify(notes ? notes.notes : notes)
       );
     });
 
-    socket.on("offlineUpdates", (updates) => {
+    socket.on("offlineUpdates", async (updates) => {
       debug("processing offline updates");
       if (updates && updates.length) {
+        processingOfflineUpdates = true;
         for (let i = 0; i < updates.length; i++) {
           const update = updates[i];
-          debug(update);
+          const action = update[0];
+          const payload = update[1];
+
+          if (action === "createNote") {
+            await createNote(userId, payload, io);
+          }
+
+          if (action === "updateNote") {
+            await updateNote(userId, payload, io);
+          }
+
+          if (action === "deleteNote") {
+            await deleteNote(userId, payload, io);
+          }
         }
       }
+      processingOfflineUpdates = false;
     });
 
     socket.on("createNote", (payload) => {
-      debug(`creating new note for user: ${userId}`);
-      Notes.findOne({ username: userId }).then((notes) => {
-        if (notes) {
-          debug(
-            `creating note with title: ${payload.title} and body ${payload.body}`
-          );
-
-          const notesMap = notes.notes;
-          notesMap.set(payload.id, {
-            title: payload.title,
-            body: payload.body,
-          });
-
-          Notes.updateOne(
-            {
-              username: userId,
-            },
-            {
-              username: userId,
-              notes: notesMap,
-            }
-          ).then(() =>
-            io.to(userId).emit("noteCreated", {
-              id: payload.id,
-              title: payload.title,
-              body: payload.body,
-            })
-          );
-        } else {
-          Notes.create({
-            username: userId,
-            notes: new Map().set(payload.id, {
-              title: payload.title,
-              body: payload.body,
-            }),
-          }).then(() => {
-            io.to(userId).emit("noteCreated", {
-              id: payload.id,
-              title: payload.title,
-              body: payload.body,
-            });
-          });
-        }
-      });
+      createNote(userId, payload, io);
     });
 
     socket.on("updateNote", (payload) => {
       debug(`updating ${userId} note ${payload.id}`);
-      if (!(payload && payload.id && payload.title && payload.body)) {
-        debug("malformed updateNote request", JSON.stringify(payload));
-        return;
-      }
-      Notes.findOne({ username: userId }).then((notes) => {
-        if (notes) {
-          let newTitle, newBody;
-
-          if (notes.notes.get(payload.id)) {
-            const oldTitle = notes.notes.get(payload.id).title;
-            const oldBody = notes.notes.get(payload.id).body;
-            newTitle = patch(oldTitle, payload.title);
-            newBody = patch(oldBody, payload.body);
-          } else {
-            newTitle = patch("", payload.title);
-            newBody = patch("", payload.body);
-          }
-
-          debug(`updating note with title: ${newTitle} and body ${newBody}`);
-
-          const notesMap = notes.notes;
-          notesMap.set(payload.id, { title: newTitle, body: newBody });
-
-          Notes.updateOne(
-            {
-              username: userId,
-            },
-            {
-              username: userId,
-              notes: notesMap,
-            }
-          ).then(() =>
-            io.to(userId).emit("noteUpdated", {
-              id: payload.id,
-              title: payload.title,
-              body: payload.body,
-            })
-          );
-        }
-      });
+      updateNote(userId, payload, io);
     });
 
     socket.on("deleteNote", (noteId) => {
-      debug("deleteNote action received");
-      Notes.findOne({ username: userId }).then((notes) => {
-        debug("found user's notes, prepping for destruction");
-        const notesMap = notes.notes;
-        if (notesMap.get(noteId)) {
-          notesMap.delete(noteId);
-        }
-        debug(`notes after deletion ${JSON.stringify(notesMap)}`);
-        Notes.updateOne(
-          {
-            username: userId,
-          },
-          {
-            username: userId,
-            notes: notesMap,
-          }
-        ).then(() => {
-          io.to(userId).emit("noteDeleted", noteId);
-          debug("note deleted");
-        });
-      });
+      deleteNote(userId, noteId, io);
     });
 
     socket.on("disconnect", (reason) => {
