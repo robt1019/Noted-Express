@@ -160,22 +160,6 @@ io.sockets
               body: payload.body,
             })
           );
-        } else {
-          const newTitle = patch("", payload.title);
-          const newBody = patch("", payload.body);
-          Notes.create({
-            username: userId,
-            notes: new Map().set(payload.id, {
-              title: newTitle,
-              body: newBody,
-            }),
-          }).then(() => {
-            io.to(userId).emit("noteUpdated", {
-              id: payload.id,
-              title: payload.title,
-              body: payload.body,
-            });
-          });
         }
       });
     });
