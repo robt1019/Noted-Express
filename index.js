@@ -7,7 +7,12 @@ const helmet = require("helmet");
 const jwks = require("jwks-rsa");
 const socketioJwt = require("socketio-jwt");
 const Notes = require("./models/notes.model");
-const { updateNote, createNote, deleteNote } = require("./notes-service");
+const {
+  getInitialNotes,
+  updateNote,
+  createNote,
+  deleteNote,
+} = require("./notes-service");
 
 const port = process.env.PORT || 3000;
 
@@ -58,18 +63,13 @@ io.sockets
       socket.disconnect(true);
     }, 900000);
 
-    Notes.findOne({ username: userId }).then((notes) => {
-      debug("sending initial notes");
-      io.to(userId).emit(
-        "initialNotes",
-        JSON.stringify(notes ? notes.notes : notes)
-      );
+    socket.on("getInitialNotes", () => {
+      getInitialNotes(userId, io);
     });
 
     socket.on("offlineUpdates", async (updates) => {
       debug("processing offline updates");
       if (updates && updates.length) {
-        processingOfflineUpdates = true;
         for (let i = 0; i < updates.length; i++) {
           const update = updates[i];
           const action = update[0];
@@ -88,7 +88,8 @@ io.sockets
           }
         }
       }
-      processingOfflineUpdates = false;
+      debug("offline updates processed");
+      socket.emit("offlineUpdatesProcessed");
     });
 
     socket.on("createNote", (payload) => {

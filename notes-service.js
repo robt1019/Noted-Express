@@ -10,6 +10,16 @@ const patch = (string, diff) => {
   return patched[0];
 };
 
+const getInitialNotes = (userId, io) => {
+  Notes.findOne({ username: userId }).then((notes) => {
+    debug("sending initial notes");
+    io.to(userId).emit(
+      "initialNotes",
+      JSON.stringify(notes ? notes.notes : notes)
+    );
+  });
+};
+
 const updateNote = (userId, payload, io) => {
   return new Promise((resolve) => {
     if (!(payload && payload.id && payload.title && payload.body)) {
@@ -136,6 +146,7 @@ const deleteNote = (userId, noteId, io) => {
 };
 
 module.exports = {
+  getInitialNotes,
   updateNote,
   createNote,
   deleteNote,
