@@ -73,6 +73,16 @@ io.sockets
       );
     });
 
+    socket.on("offlineUpdates", (updates) => {
+      debug("processing offline updates");
+      if (updates && updates.length) {
+        for (let i = 0; i < updates.length; i++) {
+          const update = updates[i];
+          debug(update);
+        }
+      }
+    });
+
     socket.on("createNote", (payload) => {
       debug(`creating new note for user: ${userId}`);
       Notes.findOne({ username: userId }).then((notes) => {
