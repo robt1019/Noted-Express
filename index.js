@@ -6,7 +6,6 @@ const compression = require("compression");
 const helmet = require("helmet");
 const jwks = require("jwks-rsa");
 const socketioJwt = require("socketio-jwt");
-const Notes = require("./models/notes.model");
 const {
   getInitialNotes,
   updateNote,
@@ -92,16 +91,25 @@ io.sockets
       socket.emit("offlineUpdatesProcessed");
     });
 
-    socket.on("createNote", (payload) => {
+    socket.on("createNote", (payload, ack) => {
+      if (ack) {
+        ack();
+      }
       createNote(userId, payload, io);
     });
 
-    socket.on("updateNote", (payload) => {
+    socket.on("updateNote", (payload, ack) => {
+      if (ack) {
+        ack();
+      }
       debug(`updating ${userId} note ${payload.id}`);
       updateNote(userId, payload, io);
     });
 
-    socket.on("deleteNote", (noteId) => {
+    socket.on("deleteNote", (noteId, ack) => {
+      if (ack) {
+        ack();
+      }
       deleteNote(userId, noteId, io);
     });
 
