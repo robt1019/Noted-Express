@@ -1,12 +1,14 @@
 {
   "name": "noted",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:dev": "npx nodemon index.js",
     "start": "npx node index.js",
+    "deploy:prod": "git push production master",
+    "deploy-force:prod": "git push production master -f",
     "deploy": "git push heroku master",
     "deploy-force": "git push heroku master -f"
   },

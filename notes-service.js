@@ -23,7 +23,7 @@ const getInitialNotes = (userId, io) => {
 const updateNote = (userId, payload, io) => {
   return new Promise((resolve) => {
     if (!(payload && payload.id && payload.title && payload.body)) {
-      debug("malformed updateNote request", JSON.stringify(payload));
+      debug("malformed updateNote request");
       resolve();
       return;
     }
@@ -41,7 +41,7 @@ const updateNote = (userId, payload, io) => {
           newBody = patch("", payload.body);
         }
 
-        debug(`updating note with title: ${newTitle} and body ${newBody}`);
+        debug(`updating note`);
 
         const notesMap = notes.notes;
         notesMap.set(payload.id, { title: newTitle, body: newBody });
@@ -68,13 +68,11 @@ const updateNote = (userId, payload, io) => {
 };
 
 const createNote = (userId, payload, io) => {
-  debug(`creating new note for user: ${userId}`);
+  debug(`creating new note`);
   return new Promise((resolve) => {
     Notes.findOne({ username: userId }).then((notes) => {
       if (notes) {
-        debug(
-          `creating note with title: ${payload.title} and body ${payload.body}`
-        );
+        debug(`creating note`);
 
         const notesMap = notes.notes;
         notesMap.set(payload.id, {
@@ -127,7 +125,6 @@ const deleteNote = (userId, noteId, io) => {
       if (notesMap.get(noteId)) {
         notesMap.delete(noteId);
       }
-      debug(`notes after deletion ${JSON.stringify(notesMap)}`);
       Notes.updateOne(
         {
           username: userId,

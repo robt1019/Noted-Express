@@ -102,7 +102,7 @@ io.sockets
       if (ack) {
         ack();
       }
-      debug(`updating ${userId} note ${payload.id}`);
+      debug(`updating note`);
       updateNote(userId, payload, io);
     });
 
