@@ -27,6 +27,10 @@ mongoose.connect(process.env.ATLAS_URI, {
   useUnifiedTopology: true,
 });
 
+app.get("/ping", (_, res) => {
+  res.send("pong");
+});
+
 const connection = mongoose.connection;
 
 connection.once("open", () => {
